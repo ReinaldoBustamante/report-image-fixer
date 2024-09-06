@@ -1,6 +1,5 @@
 import { Label } from "../domain"
-import { DataService } from "../services/dataService"
-import { ImageService } from "../services/imageService"
+import { DataService, ImageService } from "../services"
 
 export class App {
 
