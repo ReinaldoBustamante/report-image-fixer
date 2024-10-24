@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import FormData from 'form-data'
-import sharp from 'sharp'
 import { Axios } from '../config'
+import sharp from 'sharp'
+import { createCanvas, loadImage } from 'canvas'
 export class ImageService {
 
     private static async deleteImagesFromFs(): Promise<void> {
@@ -20,7 +21,7 @@ export class ImageService {
         } else {
             console.log('La carpeta no existe');
         }
-    }    
+    }
 
     public static async downloadImages(url: string): Promise<string> {
 
@@ -54,7 +55,7 @@ export class ImageService {
         try {
             const correctedImage = await sharp(imagePath)
                 .rotate(grade)
-                .toFormat('png')
+                .jpeg({ quality: 100 })
                 .toBuffer();
                 
             return correctedImage;
@@ -63,13 +64,13 @@ export class ImageService {
             throw error;
         }
     }
-    
 
-    public static async deleteImageFromStrapi(url: string, token: string, id:number) {
+
+    public static async deleteImageFromStrapi(url: string, token: string, id: number) {
         const imageDeleted = await Axios.deleteData(`${url}/api/upload/files/${id}`, token)
 
         return imageDeleted
-        
+
     }
 
 }

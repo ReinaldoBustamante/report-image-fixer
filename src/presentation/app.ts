@@ -1,9 +1,13 @@
 import { Label } from "../domain"
 import { DataService, ImageService } from "../services"
 
+
+
+//const manualImg = [
+   //IDs de imagenes que se quieren dar vuelta en 180
+//]
+
 export class App {
-
-
     constructor(
         private readonly apiUrl: string,
         private readonly apiToken: string
@@ -20,10 +24,15 @@ export class App {
         console.log(`${reports.length} reportes extraidos`)
 
         const reportsToFix = reports.filter((report) => {
-            return report.attributes.images.data.some(({ attributes }: any) => {
+
+            //reportes con imagenes en aspecto 3:4
+
+            return report.attributes.images.data?.some(({ attributes }: any) => {
                 const { width, height } = attributes;
                 return width < height
             })
+            //imagenes rotadas 180°
+            //return report.attributes.images.data?.some((image: any) => manualImg.includes(image.id) ? true : false)
         })
 
         console.log(`${reportsToFix.length} reportes por arreglar`)
@@ -40,39 +49,62 @@ export class App {
             for (let image of images.data) {
                 const { id: idImage, attributes } = image
                 const { width, height, url, name } = attributes
-                const labelsForImage = labels.filter((label) => label.imageCharacteristics.url === url);
+                const labelsForImage = labels?.filter((label) => label.imageCharacteristics.url === url);
 
-                if (width < height) {
+                if (width < height) { // cambiar a manualImg.includes(image.id) si se utiliza el array de id manual
                     console.log(`imagen con id: ${idImage} se tiene que arreglar`)
                     //descarga de imagen
                     console.log(`descargando imagen localmente...`)
                     const imagePath = await ImageService.downloadImages(url)
                     console.log('done!')
+
                     //girar 90 grados a la izquierda la imagen
                     console.log(`rotando imagen...`)
                     const correctedImage = await ImageService.rotateImage(imagePath, 270)
                     console.log('done!')
+
                     //subir imagen a strapi
                     console.log(`subiendo nueva imagen a strapi...`)
-                    const {id, url: newUrl} = await ImageService.uploadImages(name,correctedImage, this.apiUrl, this.apiToken)
+                    const { id, url: newUrl } = await ImageService.uploadImages(name, correctedImage, this.apiUrl, this.apiToken)
                     imagesIds.push(id)
                     console.log('done!')
+
                     //eliminar imagen antigua de strapi
                     console.log(`eliminando antigua imagen de strapi...`)
                     await ImageService.deleteImageFromStrapi(this.apiUrl, this.apiToken, idImage)
                     console.log('done!')
+
                     console.log('arreglando coordenadas de etiquetas')
-                    labelsForImage.forEach(label => {
-                        const fixedLabel = { 
+                    labelsForImage?.forEach(label => {
+                        const { x: originalX, y: originalY } = label.imageCharacteristics;
+
+                        /* correccion de labels para rotacion de 180 grados
+                        const fixedLabel = {
                             ...label,
                             imageCharacteristics: {
                                 ...label.imageCharacteristics,
-                                x: label.imageCharacteristics.y,
-                                y: label.imageCharacteristics.x,
+                                x: width - originalX,
+                                y: height - originalY,
                                 url: newUrl
                             }
                         }
                         labelsFixed.push(fixedLabel)
+
+                        */
+
+                        //correccion de labels para rotacion de 270 grados
+                        
+                        const fixedLabel = {
+                            ...label,
+                            imageCharacteristics: {
+                                ...label.imageCharacteristics,
+                                x: originalY,
+                                y: width - originalX,
+                                url: newUrl
+                            }
+                        }
+                        labelsFixed.push(fixedLabel)
+                        
                     })
                     console.log('done!')
 
@@ -82,6 +114,7 @@ export class App {
                 }
             }
             console.log(`subiendo cambios al reporte con id: ${idReport}`)
+
             const reportUpdated = {
                 ...attributes,
                 images: imagesIds,
@@ -92,13 +125,13 @@ export class App {
                 url: this.apiUrl,
                 token: this.apiToken,
                 id: idReport,
-                data:reportUpdated
+                data: reportUpdated
             })
+
+            
             console.log('done!\n')
-
-
         }
-
+        console.log("finish")
 
 
     }
